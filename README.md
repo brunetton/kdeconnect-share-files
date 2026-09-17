@@ -40,8 +40,8 @@ kdeconnect-share-files report.pdf photo.jpg   # several files
 kdeconnect-share-files https://example.com    # a URL also works
 ```
 
-Then pick the device in the list and press *Send*. With no argument at all, the
-window opens a file chooser, and files can be dropped on the window at any time.
+Then pick the device in the list and press *Send* (or double-clic on device name).
+With no argument at all, the window opens a file chooser, and files can be dropped on the window at any time.
 
 The window closes as soon as KDE Connect takes charge of the transfer; KDE
 Connect then shows the progress and the result in its own window. Nothing else to

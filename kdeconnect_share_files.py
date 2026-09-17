@@ -429,6 +429,7 @@ class ShareFileWindow(Adw.ApplicationWindow):
             vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER
         )
         self._device_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
+        self._device_list.set_activate_on_single_click(False)
         self._device_list.add_css_class("boxed-list")
         self._device_list.connect("row-selected", self._on_device_selected)
         self._device_list.connect("row-activated", self._on_device_activated)
