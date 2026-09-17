@@ -3,14 +3,9 @@
 Send files to a device paired in KDE Connect — your phone, most of the time —
 from a small window: pick the files, pick the device in the list, done.
 
-## Screenshots
+## Screenshot
 
-<!-- Add screenshots here once available, for example:
-
-| Device selection | Error |
-| --- | --- |
-| ![Device selection](docs/screenshots/device-selection.png) | ![Error](docs/screenshots/error.png) |
--->
+![Device selection](screenshots/2026-09-17_21-45.webp)
 
 ## Install
 
