@@ -1,0 +1,20 @@
+[build-system]
+# setuptools is already present in the environments the app is built in, so the
+# build needs no extra download (with --no-build-isolation).
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kdeconnect-share-files"
+version = "1.0.0"
+description = "Send files to a KDE Connect device from a single GTK4 window"
+requires-python = ">=3.10"
+# PyGObject is the only Python dependency. It needs the GTK4 / libadwaita
+# typelibs and a running kdeconnectd from the distribution packages.
+dependencies = ["PyGObject>=3.42"]
+
+[project.scripts]
+kdeconnect-share-files = "kdeconnect_share_files:run"
+
+[tool.setuptools]
+py-modules = ["kdeconnect_share_files"]
