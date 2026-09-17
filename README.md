@@ -13,7 +13,7 @@ KDE Connect and the GTK4 libraries must be on your computer first. On
 Debian / Ubuntu, one command:
 
 ```sh
-# install KDE Connect, pipx and the GTK4 libraries the app needs
+# install pipx and the GTK4 libraries the app needs
 sudo apt install pipx python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
 ```
 
