@@ -71,3 +71,8 @@ KDE Connect never says whether a transfer succeeded, so this window cannot tell
 you either: it closes as soon as the request is accepted. And a device that just
 went offline can still appear in the list — the app checks with KDE Connect
 before sending, but cannot know more than KDE Connect itself does.
+
+## What's next ? Future ideas
+- publish to Pypi (is it worth it?)
+- remember last selected device and select it by default
+- add an option to make window permanant to make it possible to send multiple times to the same device without having to run app multiple times
