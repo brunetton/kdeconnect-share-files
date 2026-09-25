@@ -22,7 +22,7 @@ Then install the app itself, from the `.whl` file attached to the release:
 ```sh
 # install the app; --system-site-packages reuses the libraries installed above
 # instead of trying to rebuild them
-pipx install --system-site-packages dist/kdeconnect_share_files-1.0.0-py3-none-any.whl
+pipx install --system-site-packages dist/kdeconnect_share_files-1.1.0-py3-none-any.whl
 ```
 
 pipx keeps the app in its own hidden directory and puts the

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kdeconnect-share-files"
-version = "1.0.0"
+version = "1.1.0"
 description = "Send files to a KDE Connect device from a single GTK4 window"
 requires-python = ">=3.10"
 # PyGObject is the only Python dependency. It needs the GTK4 / libadwaita
