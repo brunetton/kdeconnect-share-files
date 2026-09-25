@@ -99,6 +99,10 @@ RESULT_ICONS = {
         "dialog-warning-symbolic",
     ),
 }
+# The refresh button lives in the header bar of the window. Adwaita and
+# elementary-xfce only ship the symbolic variant, so the plain name comes first
+# for the themes that have both (Breeze) and the symbolic one is the fallback.
+REFRESH_ICONS = ("view-refresh", "view-refresh-symbolic")
 
 
 class KdeConnectError(RuntimeError):
@@ -331,21 +335,38 @@ class KdeConnectClient:
         devices.sort(key=lambda device: device.name.casefold())
         return devices
 
-    def list_devices(self, timeout: float = DISCOVERY_TIMEOUT) -> list[Device]:
-        """List the devices that are paired, reachable and able to receive files."""
+    def _force_network_change(self) -> None:
+        """Ask the daemon to look for devices on the network right now."""
+        self._call(
+            DAEMON_PATH,
+            DAEMON_IFACE,
+            "forceOnNetworkChange",
+            GLib.Variant("()", ()),
+        )
+
+    def list_devices(
+        self, timeout: float = DISCOVERY_TIMEOUT, force_refresh: bool = False
+    ) -> list[Device]:
+        """List the devices that are paired, reachable and able to receive files.
+
+        With force_refresh, a network discovery is requested before the first
+        lookup, which is what the refresh button of the window asks for: the list
+        the daemon already has is not enough, it has to look again. The initial
+        lookup stays cheap and only requests a discovery when it finds nothing.
+        """
         deadline = time.monotonic() + timeout
-        refresh_requested = False
+        if force_refresh:
+            # A discovery takes a moment to answer, so let the daemon run it
+            # before reading the list it feeds.
+            self._force_network_change()
+            time.sleep(DISCOVERY_POLL_INTERVAL)
+        refresh_requested = force_refresh
         while True:
             devices = self._available_devices()
             if devices or time.monotonic() >= deadline:
                 return devices
             if not refresh_requested:
-                self._call(
-                    DAEMON_PATH,
-                    DAEMON_IFACE,
-                    "forceOnNetworkChange",
-                    GLib.Variant("()", ()),
-                )
+                self._force_network_change()
                 refresh_requested = True
             time.sleep(DISCOVERY_POLL_INTERVAL)
 
@@ -378,6 +399,7 @@ class ShareFileWindow(Adw.ApplicationWindow):
         self._device_rows: dict[Gtk.Widget, Device] = {}
         self._selected_device: Device | None = None
         self._discovering = False
+        self._refreshing = False
         self._sending_started_at = 0.0
 
         self._stack = Gtk.Stack(
@@ -391,6 +413,7 @@ class ShareFileWindow(Adw.ApplicationWindow):
 
         header = Adw.HeaderBar()
         header.set_title_widget(Adw.WindowTitle(title=_("Share files")))
+        header.pack_end(self._build_refresh_button())
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
         toolbar.set_content(self._stack)
@@ -399,6 +422,34 @@ class ShareFileWindow(Adw.ApplicationWindow):
         drop_target = Gtk.DropTarget.new(Gdk.FileList, Gdk.DragAction.COPY)
         drop_target.connect("drop", self._on_files_dropped)
         self.add_controller(drop_target)
+
+    # -- header bar -------------------------------------------------------
+
+    def _build_refresh_button(self) -> Gtk.Widget:
+        """Build the button that asks the daemon to look for devices again.
+
+        The header bar is shared by every step, so _show_step() only shows the
+        button on the device list. Its content is a stack, so that a refresh
+        swaps the icon for a spinner instead of taking the list off screen.
+        """
+        self._refresh_content = Gtk.Stack(
+            transition_type=Gtk.StackTransitionType.CROSSFADE
+        )
+        self._refresh_content.add_named(
+            Gtk.Image.new_from_icon_name(
+                resolve_icon_name(REFRESH_ICONS, self.get_display())
+            ),
+            "icon",
+        )
+        self._refresh_content.add_named(Adw.Spinner(), "spinner")
+
+        self._refresh_button = Gtk.Button(
+            child=self._refresh_content,
+            tooltip_text=_("Look for devices again"),
+            visible=False,
+        )
+        self._refresh_button.connect("clicked", lambda _button: self._refresh_devices())
+        return self._refresh_button
 
     # -- steps ------------------------------------------------------------
 
@@ -482,6 +533,9 @@ class ShareFileWindow(Adw.ApplicationWindow):
 
     def _show_step(self, step: str) -> None:
         self._stack.set_visible_child_name(step)
+        # Refreshing only makes sense with the device list on screen, but the
+        # button is packed in the header bar, which every step shares.
+        self._refresh_button.set_visible(step == STEP_SELECT)
 
     def _show_result(
         self, icon: str, title: str, description: str, retry: bool
@@ -573,22 +627,28 @@ class ShareFileWindow(Adw.ApplicationWindow):
         self._discovering = False
         self._devices = devices
         if not devices:
-            self._show_result(
-                "warning",
-                _("No device available"),
-                _(
-                    "KDE Connect did not report any paired, reachable device able "
-                    "to receive files. Check that the daemon runs and that the "
-                    "device is on the same network."
-                ),
-                retry=True,
-            )
+            self._show_no_device_result()
             return
         if self._urls:
             self._populate_devices()
             self._show_step(STEP_SELECT)
 
-    def _populate_devices(self) -> None:
+    def _show_no_device_result(self) -> None:
+        self._show_result(
+            "warning",
+            _("No device available"),
+            _(
+                "KDE Connect did not report any paired, reachable device able "
+                "to receive files. Check that the daemon runs and that the "
+                "device is on the same network."
+            ),
+            retry=True,
+        )
+
+    def _populate_devices(self, keep_selection: bool = False) -> None:
+        # Refreshing the list must not drop the device the user already picked.
+        previous = self._selected_device if keep_selection else None
+        selected_row = None
         self._device_list.remove_all()
         self._device_rows.clear()
         self._selected_device = None
@@ -609,6 +669,12 @@ class ShareFileWindow(Adw.ApplicationWindow):
             row.set_child(action_row)
             self._device_list.append(row)
             self._device_rows[action_row] = device
+            if previous is not None and device.id == previous.id:
+                selected_row = row
+
+        if selected_row is not None:
+            # Selecting the row runs the usual selection handling.
+            self._device_list.select_row(selected_row)
 
         count = len(self._urls)
         self._select_heading.set_label(
@@ -631,6 +697,46 @@ class ShareFileWindow(Adw.ApplicationWindow):
     def _on_device_activated(self, listbox: Gtk.ListBox, row: Gtk.ListBoxRow) -> None:
         self._on_device_selected(listbox, row)
         self._start_sending()
+
+    # -- refresh the device list ------------------------------------------
+
+    def _refresh_devices(self) -> None:
+        """Look for devices again while the list stays on screen."""
+        if self._refreshing:
+            return
+        self._refreshing = True
+        self._set_refresh_busy(True)
+        self._run_async(
+            lambda: self._client.list_devices(force_refresh=True),
+            self._on_devices_refreshed,
+            self._on_refresh_failure,
+        )
+
+    def _on_devices_refreshed(self, devices: list[Device]) -> None:
+        self._refreshing = False
+        self._set_refresh_busy(False)
+        if self._stack.get_visible_child_name() != STEP_SELECT:
+            # The user left the device list while the daemon was looking, by
+            # starting a transfer for instance: a refresh result must not pull
+            # them back to the list.
+            return
+        if not devices:
+            self._devices = []
+            self._show_no_device_result()
+            return
+        self._devices = devices
+        self._populate_devices(keep_selection=True)
+
+    def _on_refresh_failure(self, error: Exception) -> None:
+        self._refreshing = False
+        self._set_refresh_busy(False)
+        # The devices could not be listed, exactly like the initial lookup.
+        self._on_discovery_failure(error)
+
+    def _set_refresh_busy(self, busy: bool) -> None:
+        """Show a spinner instead of the refresh icon while the daemon looks."""
+        self._refresh_content.set_visible_child_name("spinner" if busy else "icon")
+        self._refresh_button.set_sensitive(not busy)
 
     # -- step 3: send -----------------------------------------------------
 
