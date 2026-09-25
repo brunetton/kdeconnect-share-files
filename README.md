@@ -29,8 +29,12 @@ pipx keeps the app in its own hidden directory and puts the
 `kdeconnect-share-files` command in `~/.local/bin`.
 To remove it later: `pipx uninstall kdeconnect-share-files`.
 
-Needs GTK 4.10+ and libadwaita 1.6+. Tested with KDE Connect 25.12, GTK 4.22 and
-Python 3.12.
+### Upgrade
+
+```sh
+pipx uninstall kdeconnect-share-files
+pipx install --system-site-packages dist/kdeconnect_share_files-1.1.0-py3-none-any.whl
+```
 
 ## Use it
 
