@@ -17,12 +17,13 @@ Debian / Ubuntu, one command:
 sudo apt install pipx python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
 ```
 
-Then install the app itself, from the `.whl` file attached to the release:
+Then install the app itself, from the `.whl` file attached to the release (run
+the command from the folder the wheel was downloaded to):
 
 ```sh
 # install the app; --system-site-packages reuses the libraries installed above
 # instead of trying to rebuild them
-pipx install --system-site-packages dist/kdeconnect_share_files-1.1.0-py3-none-any.whl
+pipx install --system-site-packages kdeconnect_share_files-1.1.0-py3-none-any.whl
 ```
 
 pipx keeps the app in its own hidden directory and puts the
@@ -33,7 +34,7 @@ To remove it later: `pipx uninstall kdeconnect-share-files`.
 
 ```sh
 pipx uninstall kdeconnect-share-files
-pipx install --system-site-packages dist/kdeconnect_share_files-1.1.0-py3-none-any.whl
+pipx install --system-site-packages kdeconnect_share_files-1.1.0-py3-none-any.whl
 ```
 
 ## Use it
